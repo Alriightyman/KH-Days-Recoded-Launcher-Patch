@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <RootNamespace>kh_days_recoded_launcher</RootNamespace>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <ApplicationIcon>assets/icon.ico</ApplicationIcon>
+        <AssemblyName>KINGDOM HEARTS RE-Launcher</AssemblyName>
+    </PropertyGroup>
+
+</Project>
