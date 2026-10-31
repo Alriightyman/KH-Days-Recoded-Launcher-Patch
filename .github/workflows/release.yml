@@ -1,0 +1,90 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"          # e.g. v1.0.0 triggers a build + GitHub release
+  workflow_dispatch:   # manual run: builds artifacts only, no release
+
+permissions:
+  contents: write      # needed to create the release
+
+env:
+  PROJECT: kh-days-recoded-launcher.csproj
+  APP_NAME: kh-days-recoded-launcher
+
+jobs:
+  build:
+    name: Build ${{ matrix.rid }}
+    runs-on: ubuntu-latest   # .NET can cross-publish for Windows from Linux
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            archive: zip
+          - rid: linux-x64
+            archive: tar.gz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore ${{ env.PROJECT }} -r ${{ matrix.rid }}
+
+      - name: Publish
+        run: >
+          dotnet publish ${{ env.PROJECT }}
+          -c Release
+          -r ${{ matrix.rid }}
+          --self-contained true
+          --no-restore
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:DebugType=None
+          -p:DebugSymbols=false
+          -o publish/${{ matrix.rid }}
+
+      - name: Package (zip)
+        if: matrix.archive == 'zip'
+        run: |
+          cd publish/${{ matrix.rid }}
+          zip -r "../../${APP_NAME}-${{ matrix.rid }}.zip" .
+
+      - name: Package (tar.gz)
+        if: matrix.archive == 'tar.gz'
+        run: |
+          # tar preserves the executable bit, which zip often loses
+          tar -czf "${APP_NAME}-${{ matrix.rid }}.tar.gz" -C publish/${{ matrix.rid }} .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-${{ matrix.rid }}
+          path: ${{ env.APP_NAME }}-${{ matrix.rid }}.${{ matrix.archive }}
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
